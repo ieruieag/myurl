@@ -1,0 +1,36 @@
+func findAction(actions *eos.ActionsResp, globalSeq int, txid string)(index int){
+	len := len(actions.Actions)
+	seq := eos.JSONInt64(globalSeq)
+	first := actions.Actions[0]
+	last := actions.Actions[len-1]
+	if first.GlobalSeq >= seq && last.GlobalSeq <= seq{
+		for i,action := range actions.Actions{
+			//if action.GlobalSeq == seq && action.Trace.TransactionID.String() == txid{
+			if action.GlobalSeq == seq{
+				return i
+			}
+		}
+	}
+	return -1
+}
+func findActions(beginpos eos.Int64, globalSeq int, txid string) (actions *eos.ActionsResp, pos eos.Int64, err error) {
+	pos = beginpos
+	for{
+		tempActions, tempErr := myeos.Api.GetActions(context.Background(),eos.GetActionsRequest{
+			eos.AN("liontestea25"),pos,0})
+		if err != nil{
+			return tempActions, pos, tempErr
+		}
+		if len(tempActions.Actions) == 0{
+			return
+		}
+		actions = tempActions
+		err = tempErr
+		if globalSeq == 0 || findAction(actions,globalSeq,txid) < 0{
+			pos += eos.Int64(len(actions.Actions))
+			continue
+		}
+		//finded
+		return
+	}
+}
