@@ -24,6 +24,165 @@ https://blog.csdn.net/ma15732625261/article/details/80026868
 
 
 
+-------------------------------------elasticsearch---------------------------------
+
+centos7.9
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.13.4-x86_64.rpm
+rpm -ivh elasticsearch-7.13.4-x86_64.rpm
+//注意 安装完成后有提示创建的keystore在哪里：Created elasticsearch keystore in /etc/elasticsearch/elasticsearch.keystore
+
+yum -y install tomcat
+安装目录：/usr/share/elasticsearch/
+cd /usr/share/elasticsearch/
+配置文件位置：/etc/elasticsearch/elasticsearch.yml
+vim /etc/elasticsearch/elasticsearch.yml
+network.host: 0.0.0.0     #允许外网访问
+http.port: 9200
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+
+
+注意，root用户是不能直接启动elasticsearch的，需要新建用户，然后切换用户去启动elasticsearch，如下：
+创建elsearch用户组及elsearch用户
+#groupadd elsearch
+#useradd elsearch -g elsearch -p elasticsearch
+更改elasticsearch-6.4.2文件夹及内部文件的所属用户及组为elsearch:elsearch
+
+chown -R elsearch:elsearch /usr/share/elasticsearch
+chown 777 /etc/sysconfig/elasticsearch      //应该可以不用
+chown elsearch:elsearch /etc/sysconfig/elasticsearch
+chown -R elsearch:elsearch /etc/elasticsearch
+chown -R elsearch:elsearch /var/log/elasticsearch
+chown -R elsearch:elsearch /var/lib/elasticsearch
+
+切换到elsearch用户再启动
+su elsearch
+cd /usr/share/elasticsearch/bin
+sh elasticsearch &
+
+http://localhost:9200
+
+这个很耗内存
+
+错误：
+[2021-07-23T04:59:04,852][INFO ][o.e.t.TransportService   ] [localhost.localdomain] publish_address {10.8.31.27:9300}, bound_addresses {[::]:9300}
+[2021-07-23T04:59:04,976][INFO ][o.e.b.BootstrapChecks    ] [localhost.localdomain] bound or publishing to a non-loopback address, enforcing bootstrap checks
+ERROR: [2] bootstrap checks failed. You must address the points described in the following [2] lines before starting Elasticsearch.
+bootstrap check failure [1] of [2]: max file descriptors [4096] for elasticsearch process is too low, increase to at least [65535]          //这里是重点，增加到65535
+https://blog.csdn.net/feng12345zi/article/details/80367907  因为加了0.0.0.0
+
+
+bootstrap check failure [1] of [1]: the default discovery settings are unsuitable for production use; at least one of [discovery.seed_hosts, discovery.seed_providers, cluster.initial_master_nodes] must be configured
+解决方法：
+vim /etc/elasticsearch/elasticsearch.yml
+开启
+node.name: node-1
+cluster.initial_master_nodes: ["node-1"]
+
+elasticsearch安装 及 启动异常解决
+https://blog.csdn.net/happyzxs/article/details/89156068
+
+
+
+-----------------------------------kibana----------------------------------------------------
+wget https://artifacts.elastic.co/downloads/kibana/kibana-7.13.4-x86_64.rpm
+rpm -ivh kibana-7.13.4-x86_64.rpm
+安装目录：/usr/share/kibana/
+配置文件：/etc/kibana/kibana.yml
+
+
+kibana配置文件kibana.yml参数详解
+https://blog.csdn.net/happyzxs/article/details/89156068
+
+
+错误：
+Error: ENOENT: no such file or directory, open '/usr/share/kibana/config/kibana.yml'
+mkdir /usr/share/kibana/config
+mv /etc/kibana/kibana.yml /usr/share/kibana/config/kibana.yml
+
+
+vim /usr/share/kibana/config/kibana.yml
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://localhost:9200"]
+kibana.index: ".kibana"
+
+cd /usr/share/kibana/bin
+sh kibana
+sh kibana --allow-root    //root用户需要这样
+
+http://localhost:5601
+
+当logstash启动后，会找到elasticsearch，然后在kibanba中，就会读到索引。 但是要查看，还需要创建一个索引，选则读出的索引中要看的。
+
+-----------------------------------logstash----------------------------------------------------
+wget https://artifacts.elastic.co/downloads/logstash/logstash-7.13.4-x86_64.rpm
+rpm -ivh logstash-7.13.4-x86_64.rpm
+
+安装目录：/usr/share/logstash
+配置文件：/etc/logstash/logstash.yml
+         /etc/logstash/startup.options
+
+错误：
+ERROR: Failed to read pipelines yaml file. Location: /usr/share/logstash/config/pipelines.yml
+cp -r /etc/logstash/ /usr/share/logstash/config
+
+No config files found in path {:path=>"/etc/logstash/conf.d/*.conf"}
+logstash启动必须有默认的conf，就是in，out指定的。默认是/etc/logstash/conf.d/目录,下面的是自动爬tomcat的log
+
+vim /etc/logstash/conf.d/logstash1.conf
+input {
+    file {
+        path => "/usr/share/tomcat/logs/*.log"
+        start_position => beginning
+    }
+}
+filter {
+}
+output {
+    elasticsearch {
+        hosts => "localhost:9200"
+    }
+}
+
+
+如何查看log
+go-kit 微服务 日志分析管理 （ELK + Filebeat）
+https://studygolang.com/topics/11082
+
+
+
+Discover：  是看日志的地方
+
+
+
+
+-------------------------------tomcat-------------------------------------------
+
+
+
+
+filebeat采集udp/tcp数据
+https://blog.csdn.net/zsx18273117003/article/details/106221215
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
